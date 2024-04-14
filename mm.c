@@ -137,27 +137,43 @@ void *mm_malloc(size_t size)
     return bp;
 }
 
-/* find_fit - next-fit 사이즈에 맞는 가용 블록 찾는 함수 */
+/* find_fit - best-fit */
 static void *find_fit(size_t adjust_size) {
-    void *bp = next_bp;
-    for (bp = NEXT_BLKP(bp); GET_SIZE(HDRP(bp)) > 0 ; bp = NEXT_BLKP(bp)) {
-        if ( GET_ALLOC(HDRP(bp)) == 0 && GET_SIZE(HDRP(bp)) >= adjust_size ) { // 원하는 크기 이상의 가용블록이 나오면
-            next_bp = bp; // 탐색 포인터를 현재 선택된 가용블록 다음으로 설정
-            return bp;
-        }
-    }
-    // 이전탐색의 종료지점부터 찾았는데 사용가능한 블록이 없다면
-    bp = heap_listp;
-    while ( bp < next_bp)
-    {
-       bp = NEXT_BLKP(bp);
-       if ((GET_ALLOC(HDRP(bp)) == 0) && GET_SIZE(HDRP(bp)) >= adjust_size) {
-            next_bp = bp;
-            return bp;
-       }
-    }
-    return NULL;
+
+    void *bp;
+    void *best_bp = NULL;
+
+    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0 ; bp =NEXT_BLKP(bp)) 
+ 
+        if ( GET_SIZE(HDRP(bp)) >= adjust_size && GET_ALLOC(HDRP(bp)) == 0) 
+            // small_size = MIN(GET_SIZE(HDRP(bp)),small_size);
+            if (best_bp == NULL || (HDRP(bp)) < GET_SIZE(HDRP(best_bp)))
+                best_bp = bp;
+    
+    return best_bp;
 }
+
+/* find_fit - next-fit 사이즈에 맞는 가용 블록 찾는 함수 */
+// static void *find_fit(size_t adjust_size) {
+//     void *bp = next_bp;
+//     for (bp = NEXT_BLKP(bp); GET_SIZE(HDRP(bp)) > 0 ; bp = NEXT_BLKP(bp)) {
+//         if ( GET_ALLOC(HDRP(bp)) == 0 && GET_SIZE(HDRP(bp)) >= adjust_size ) { // 원하는 크기 이상의 가용블록이 나오면
+//             next_bp = bp; // 탐색 포인터를 현재 선택된 가용블록 다음으로 설정
+//             return bp;
+//         }
+//     }
+//     // 이전탐색의 종료지점부터 찾았는데 사용가능한 블록이 없다면
+//     bp = heap_listp;
+//     while ( bp < next_bp)
+//     {
+//        bp = NEXT_BLKP(bp);
+//        if ((GET_ALLOC(HDRP(bp)) == 0) && GET_SIZE(HDRP(bp)) >= adjust_size) {
+//             next_bp = bp;
+//             return bp;
+//        }
+//     }
+//     return NULL;
+// }
 
 // first - fit 
 // static void *find_fit(size_t adjust_size) {
@@ -194,6 +210,7 @@ static void place(void *bp,size_t adjust_size){
     //printf("block 위치 %p | padding으로 넣은 size 크기 %d\n", (unsigned int *)bp, csize);
     }
 }
+
 /*
  * mm_free - Freeing a block does nothing.
  */
@@ -262,7 +279,7 @@ void *mm_realloc(void *bp, size_t size)
     if (size < copySize)
       copySize = size;
     memcpy(newptr, oldptr, copySize); // 복사받을 메모리, 복사할 메모리, 길이
-
     mm_free(oldptr);
+
     return newptr;
 }
