@@ -142,12 +142,12 @@ static void *find_fit(size_t adjust_size) {
 
     void *bp;
     void *best_bp = NULL;
+    size_t small_size = NULL;
 
     for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0 ; bp =NEXT_BLKP(bp)) 
  
         if ( GET_SIZE(HDRP(bp)) >= adjust_size && GET_ALLOC(HDRP(bp)) == 0) 
-            // small_size = MIN(GET_SIZE(HDRP(bp)),small_size);
-            if (best_bp == NULL || (HDRP(bp)) < GET_SIZE(HDRP(best_bp)))
+            if (!best_bp || GET_SIZE(HDRP(bp)) < GET_SIZE(HDRP(best_bp)))
                 best_bp = bp;
     
     return best_bp;
