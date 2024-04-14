@@ -84,24 +84,28 @@ int mm_init(void)
     PUT(heap_listp + (2*WSIZE),PACK(DSIZE,1));
     PUT(heap_listp + (3*WSIZE), PACK(0,1));
     heap_listp += (2*WSIZE);
-    next_bp = heap_listp;
-    if (extend_heap(CHUNKSIZE / WSIZE) == NULL)
+    next_bp = heap_listp; // 다음 블록 포인터를 가리키는 변수 지정
+    if (extend_heap(CHUNKSIZE / WSIZE) == NULL) // 워드단위로 받음 
         return -1;
     return 0;
 }
+
 static void *extend_heap(size_t words) {
     char *bp; // 블록포인터
     size_t size; // size 는 힙의 총 바이트 수
-    size = (words % 2 == 1) ? ( (words + 1) * WSIZE ) : words * WSIZE;
+
+    size = (words % 2 == 1) ? ( (words + 1) * WSIZE ) : words * WSIZE; 
+
     if ((long)(bp = mem_sbrk(size) ) == -1)
         return NULL; // 새메모리의 첫 부분을 bp로 지정
     // 들어오는 가용 블록의 헤더와 푸터 지정
     PUT(HDRP(bp), PACK(size,0));
     PUT(FTRP(bp), PACK(size,0));
     PUT(HDRP(NEXT_BLKP(bp)),PACK(0,1));
-    // 이전 블록이 가용이면 연결
-    return coalesce(bp);
+
+    return coalesce(bp); // 이전 블록이 가용이면 연결
 }
+
 /*
  * mm_malloc - Allocate a block by incrementing the brk pointer.
  *     Always allocate a block whose size is a multiple of the alignment.
@@ -131,16 +135,9 @@ void *mm_malloc(size_t size)
     //printf("사이즈 부족으로 Chuncksize %d 연장\n", extend_size);
     place(bp,adjust_size);
     return bp;
-    // size_t newsize = ALIGN(size + SIZE_T_SIZE);
-    // void *p = mem_sbrk(newsize);
-    // if (p == (void *)-1)
-	// return NULL;
-    // else {
-    //     *(size_t *)p = size;
-    //     return (void *)((char *)p + SIZE_T_SIZE);
-    // }
 }
-/* find_fix - 사이즈에 맞는 가용 블록 찾는 함수 */
+
+/* find_fit - next-fit 사이즈에 맞는 가용 블록 찾는 함수 */
 static void *find_fit(size_t adjust_size) {
     void *bp = next_bp;
     for (bp = NEXT_BLKP(bp); GET_SIZE(HDRP(bp)) > 0 ; bp = NEXT_BLKP(bp)) {
@@ -161,6 +158,19 @@ static void *find_fit(size_t adjust_size) {
     }
     return NULL;
 }
+
+// first - fit 
+// static void *find_fit(size_t adjust_size) {
+//     // 처음부터 찾아가면서, 에필로그 블럭전까지 찾아서 할당하는 방식
+//     void *bp = heap_listp;
+
+//     for (bp = NEXT_BLKP(bp); GET_SIZE(HDRP(bp)) > 0 ; bp = NEXT_BLKP(bp)) {
+//         if (GET_ALLOC(HDRP(bp)) == 0 && GET_SIZE(HDRP(bp)) >= adjust_size) 
+//             return bp;
+//     }
+//     return NULL;
+// }
+
 static void place(void *bp,size_t adjust_size){
     size_t csize = GET_SIZE(HDRP(bp)); // 할당가능한 가용 블럭의 후보 주소
     // 분할이 가능한 경우 (가용블록의 시작 부분)
@@ -169,10 +179,12 @@ static void place(void *bp,size_t adjust_size){
         PUT(HDRP(bp),PACK(adjust_size, 1));
         PUT(FTRP(bp),PACK(adjust_size, 1));
         //printf("block 위치 %p | 들어갈 list의 크기 %d | 넣어야할 size 크기 %d\n", (unsigned int *)bp, csize, adjust_size);
+        
         // 뒤는 가용블록
         bp = NEXT_BLKP(bp);
         PUT(HDRP(bp),PACK(csize - adjust_size,0));
         PUT(FTRP(bp),PACK(csize - adjust_size,0));
+          
         //printf("free block 위치 %p | 나머지 block 크기 %d\n", (unsigned int *)bp, csize - adjust_size);
     }
     // 분할이 불가능한 경우 (남은 부분은 padding)
@@ -189,15 +201,17 @@ void mm_free(void *bp)
 {
     // 주소값의 사이즈의 정보를 가져옴
     size_t size = GET_SIZE(HDRP(bp));
+
     PUT(HDRP(bp), PACK(size,0));
     PUT(FTRP(bp), PACK(size,0));
-    coalesce(bp);
+    coalesce(bp); // 앞 뒤가 가용이면 연결
 }
+
 // free 블록 반환 후 경계 태그 연결사용해서 상수시간에 인접 가용블록과 통합
 static void *coalesce(void *bp) {
+
     // (헤더) 이전 할당 여부 사이즈 - 이전에 할당한 여부를 헤더의 주소에서 가져오기
-    void * prebck = HDRP(PREV_BLKP(bp));
-    size_t prev_alloc = GET_ALLOC(prebck);
+    size_t prev_alloc = GET_ALLOC(HDRP(PREV_BLKP(bp)));
     // (푸터) 이후 할당 여부 사이즈 - 이후에 할당한 여부를 푸터의 주소에서 가져오기
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     // 현재 반환할 주소
@@ -234,18 +248,21 @@ static void *coalesce(void *bp) {
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  */
-void *mm_realloc(void *ptr, size_t size)
+void *mm_realloc(void *bp, size_t size)
 {
-    void *oldptr = ptr;
+
+    void *oldptr = bp;
     void *newptr;
     size_t copySize;
+
     newptr = mm_malloc(size);
     if (newptr == NULL)
       return NULL;
-    copySize = GET_SIZE(HDRP(ptr));
+    copySize = GET_SIZE(HDRP(bp));
     if (size < copySize)
       copySize = size;
-    memcpy(newptr, oldptr, copySize);
+    memcpy(newptr, oldptr, copySize); // 복사받을 메모리, 복사할 메모리, 길이
+
     mm_free(oldptr);
     return newptr;
 }
