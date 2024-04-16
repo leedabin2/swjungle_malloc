@@ -95,6 +95,7 @@ int mm_init(void)
     PUT(heap_listp + (5*WSIZE), PACK(0,1)); // 에필로그 
 
     free_listp = heap_listp + DSIZE;// 첫 가용 블록 시작점 (가용리스트에 블록이 추가 될 때마다 제일 앞에 추가됨)
+    printf(free_listp);
     //next_bp = heap_listp; // 다음 블록 포인터를 가리키는 변수 지정
     if (extend_heap(CHUNKSIZE / WSIZE) == NULL) // 워드단위로 받음 
         return -1;
@@ -192,10 +193,10 @@ static void place(void *bp,size_t adjust_size){
 
 void put_free_list(void *bp) {
     // 새로 생성된 가용블록을 맨 앞에 추가
-    GET_SUCC(bp) = free_listp;
-    GET_PRED(bp) = NULL;
-    GET_PRED(free_listp) = bp;
-    free_listp = bp;
+    GET_SUCC(bp) = free_listp; // bp의 succ은 루트가 가리키던 블록
+    GET_PRED(bp) = NULL; 
+    GET_PRED(free_listp) = bp; // 루트였던 블록의 이전가용블록을 추가된 블록에 연결
+    free_listp = bp; // 루트를 현재 블록으로 변경한다. 
 }
 
 // 가용블럭 중에 할당후보로 선택된 블록의 주소를 삭제
